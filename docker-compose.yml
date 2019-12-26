@@ -1,0 +1,34 @@
+version: "3.7"
+services:
+  redis:
+    build: ./redis
+    image: redis:alpine-cst
+    container_name: tms-nginx-finder-redis
+    ports:
+      - "6379:6379"
+
+  redis-cli:
+    image: redis:alpine-cst
+    container_name: tms-nginx-finder-rediscli
+    links:
+      - redis
+    command: /bin/sh -c "date +'%Y%m%d_%H%M%S' | xargs redis-cli -h redis set upload:start_time"
+
+  nginx:
+    build: ./nginx
+    image: tms-nginx-finder:test
+    container_name: tms-nginx-finder-nginx
+    ports:
+      - "8080:80"
+    volumes:
+      - ./nginx/nginx.conf:/usr/local/nginx/conf/nginx.conf:ro
+      - ./nginx/html:/usr/local/nginx/html
+      - ./nginx/njs:/usr/local/nginx/njs
+      - ./upload:/usr/local/nginx/files
+    environment:
+      - REDIS_KEY_UPLOAD_START_TIME=upload:start_time
+      - REDIS_KEY_UPLOAD_COUNTER=upload:counter
+      - REDIS_CHANNEL_UPLOAD=upload:event
+      - LOCAL_UPLOAD_LOG=/usr/local/nginx/files/upload.log
+    links:
+      - redis
